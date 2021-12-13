@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shop</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"
+      integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l"
+      crossorigin="anonymous"
+    />
+    <script src="https://unpkg.com/react@17.0.2/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/react-router-dom@5.0.0/umd/react-router-dom.min.js"></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/react-router/6.0.2/react-router.production.min.js"
+      integrity="sha512-5BBe9EJQhDRBXEzdzDcw8R+T/UvxWoam1Y6C1F2zK0DJjy/mPF4P5Y+sLpoqf+kxmXkrlxY5HEAiiosRRk5tow=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script src="https://unpkg.com/babel-standalone@6.26.0/babel.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+      var products = [
+        {
+          id: 646464,
+          image:
+            "https://static-01.daraz.com.np/p/62a3dc6ac18890e49d0853e0d76cf6d7.jpg",
+          name: "Winter Scarf",
+        },
+        {
+          id: 45546546,
+          image:
+            "https://static-01.daraz.com.np/p/f93141e6bcca296bc002ff12a752e82d.jpg_200x200q80-product.jpg_.webp",
+          name: "Transparent Glasses",
+        },
+      ];
+      const Link = ReactRouterDOM.Link;
+      const Route = ReactRouterDOM.Route;
+      const useParams = ReactRouter.useParams;
+
+      const App = () => (
+        <ReactRouterDOM.HashRouter>
+          <div style={{ width: "800px", margin: "auto" }}>
+            <Route path="/" exact component={Home} />
+            <Route path="/product/:id" component={ProductPage} />
+          </div>
+        </ReactRouterDOM.HashRouter>
+      );
+
+      const Home = () => (
+        <div style={{ display: "flex", padding: "50px 0" }}>
+          {products.map(({ id, image, name }) => (
+            <div key={id}>
+              <Link to={`/product/${id}?name=${name}&image=${image}`}>
+                <div>
+                  <img src={image} style={{ width: "400px" }} />
+                </div>
+                <h1> {name} </h1>
+              </Link>
+            </div>
+          ))}
+        </div>
+      );
+      const ProductPage = (props) => {
+        const search = props.location.search;
+        const params = new URLSearchParams(search);
+        const name = params.get("name");
+        const image = params.get("image");
+        const [submit, setSubmit] = React.useState({
+          isSubmitting: false,
+          times: 0,
+          failed: 0,
+          success: false,
+        });
+        const phoneRef = React.useRef(null);
+
+        const handleSubmit = React.useCallback(async () => {
+          setSubmit((s) => ({ ...s, isSubmitting: true }));
+          const phone = phoneRef.current && phoneRef.current.value;
+          let retries = 0;
+          while (retries < 5) {
+            try {
+              let res = await fetch("http://localhost:5000/order", {
+                method: "post",
+                body: JSON.stringify({ phone: phone }),
+                headers: {
+                  Accept: "application/json",
+                  "Content-Type": "application/json",
+                },
+              });
+              if (res.status > 300) throw new Error("");
+              setSubmit((s) => ({
+                ...s,
+                isSubmitting: false,
+                res,
+                success: true,
+              }));
+              break;
+            } catch (e) {
+              setSubmit((s) => ({
+                ...s,
+                isSubmitting: true,
+                times: s.times + 1,
+                failed: s.failed + 1,
+              }));
+              retries++;
+              console.log("Delay 1000ms");
+              await new Promise((res, rej) => setTimeout(() => res(""), 1000));
+              console.log("Delayed 1000ms");
+            }
+          }
+          setSubmit((s) => ({
+            ...s,
+            isSubmitting: false,
+            times: 0,
+          }));
+        }, [submit]);
+
+        return (
+          <div style={{ width: "800px", margin: "auto" }}>
+            <Link to="/">
+              <a className="py-4"> Home </a>
+            </Link>
+            <div>
+              <img src={image} style={{ width: "500px" }} />
+            </div>
+            <h1 className="py-4">{name}</h1>
+
+            <form>
+              <div class="input-group mb-3">
+                <input
+                  type="text"
+                  class="form-control"
+                  placeholder="Your phone"
+                  ref={phoneRef}
+                  name="Phone"
+                  required
+                />
+                <div class="input-group-append">
+                  <button
+                    class="btn btn-outline-secondary"
+                    type="submit"
+                    onClick={handleSubmit}
+                    disabled={submit.isSubmitting}
+                  >
+                    {submit.isSubmitting
+                      ? "Ordering"
+                      : submit.failed > 0
+                      ? "Try again"
+                      : "Order"}
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            <div>{submit.times > 0 && `Retrying ${submit.times} times.`}</div>
+            {submit.success && <div> Order placed successfully. </div>}
+          </div>
+        );
+      };
+
+      ReactDOM.render(<App />, document.querySelector("#root"));
+    </script>
+  </body>
+</html>
